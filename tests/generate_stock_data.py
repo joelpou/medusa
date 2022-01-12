@@ -1,0 +1,115 @@
+import os
+import sys
+
+import random
+import yfinance as yf
+import plotly.graph_objects as go
+import mplfinance as fplt
+import matplotlib.pyplot as plt
+import uuid
+
+import pandas as pd
+from datetime import datetime
+import ta
+
+output_path = sys.argv[1]
+os.makedirs(output_path, exist_ok=True)
+
+
+def label_candle_data(data, last_list):
+    # print(data)
+    trend = ''
+    current_highs = data['High'].tolist()
+    current_highest = max(current_highs)
+    current_lows = data['Low'].tolist()
+    current_lowest = min(current_lows)
+    current_closes = data['Close'].tolist()
+    current_close = current_closes[-1]
+
+    if current_close > last_list[0]:
+        trend = 'UP'
+    elif current_close < last_list[1]:
+        trend = 'DOWN'
+    elif last_list[0] >= current_close >= last_list[1]:
+        trend = 'SIDE'
+
+    return [current_highest, current_lowest, current_close], trend
+
+
+def main():
+    cnt = 0
+    window = 14
+    # table = pd.read_html('https://en.wikipedia.org/wiki/List_of_S%26P_500_companies')
+    # df = table[0]
+    # tickers = df['Symbol'].to_list()
+    # print(tickers)
+    # full_stock_data = yf.download(stockdata, '2010-01-01', '2021-03-03')
+    # print(full_stock_data['Volume'])
+    tickers = ['TSLA', 'AAPL', 'NFLX', 'GOOG', 'AMZN', 'FB', 'EBAY', 'ETSY', 'F', 'IBM', 'ENPH', 'COST']
+    for ticker in tickers:
+        print(ticker)
+        ticker_data = yf.Ticker(ticker)
+        ticker_df = ticker_data.history(period='1d', start='2012-12-01', end='2021-01-01')
+        ticker_df = ticker_df.drop(['Dividends', 'Stock Splits'], axis=1)
+        ticker_df.reset_index(inplace=True)  # Convert the Datetimeindex to 'Date' column
+        ticker_df.index = pd.DatetimeIndex(ticker_df['Date'])
+        ticker_volume = ticker_df["Volume"]
+        # print(ticker_df.info())
+        # print(ticker_df)
+        # print(ticker_volume)
+        # print(ticker_close)
+
+        ticker_volume_sma = ta.wrapper.SMAIndicator(ticker_volume, window).sma_indicator()
+
+        last_highest = max(ticker_df[:window]['High'].tolist())
+        last_lowest = min(ticker_df[:window]['Low'].tolist())
+        last_close = ticker_df[:window]['Close'].tolist()[-1]
+
+        last_list = [last_highest, last_lowest, last_close]
+
+        ticker_df = ticker_df[window:]
+        ticker_volume_sma = ticker_volume_sma[window:]
+
+        # print(ticker_df.shape)
+        # print(ticker_volume_sma.shape)
+
+        for i, row in enumerate(ticker_df.iterrows()):
+            if i % window == 0:
+                # i_vol = float(row[1]['Volume'])
+                # i_vol_sma = float(ticker_volume_sma[i])
+                cnt = cnt + 1
+                # print(i_vol)
+                # print(type(i_vol_sma))
+                # print(i_vol_sma))
+                # if i_vol > i_vol_sma: #TODO volume sma requirement?
+                chunk = ticker_df[i:i + window]
+
+                last_list, trend = label_candle_data(chunk, last_list)
+
+                dates = pd.to_datetime(chunk['Date']).dt.date
+                date_interval = str(dates[0]) + '_' + str(dates[1])
+                output_dir = output_path + '/' + trend
+                os.makedirs(output_dir, exist_ok=True)
+                output = output_dir + '/' + ticker + '_' + date_interval + '_' + trend + '.png'
+
+                fplt.plot(
+                    chunk,
+                    # ax= dx,
+                    axisoff=True,
+                    figscale=0.2,
+                    type='candle',
+                    # style=s,
+                    style='yahoo',
+                    # volume=True,
+                    savefig=dict(fname=output, dpi=64, pad_inches=0)
+                )
+
+                window = random.randint(6, 12)
+
+                # else:
+                #     print('skip...')
+    print(cnt)
+
+
+if '__main__':
+    main()

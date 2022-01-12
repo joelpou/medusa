@@ -11,7 +11,7 @@ def get_data_interval(data, start_str, end_str):
     start_date = pd.Timestamp(start_str).date()
     end_date = pd.Timestamp(end_str).date()
     start_i, end_i = 0, 0
-    for i, row in df.iterrows():
+    for i, row in data.iterrows():
         data_date = pd.Timestamp(row['Date']).date()
         if start_date == data_date:
             start_i = i
