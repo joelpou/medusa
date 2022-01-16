@@ -1,15 +1,9 @@
 import os
 import sys
-
 import random
 import yfinance as yf
-import plotly.graph_objects as go
 import mplfinance as fplt
-import matplotlib.pyplot as plt
-import uuid
-
 import pandas as pd
-from datetime import datetime
 import ta
 
 output_path = sys.argv[1]
@@ -36,9 +30,24 @@ def label_candle_data(data, last_list):
     return [current_highest, current_lowest, current_close], trend
 
 
+def save_plot(chunk, output):
+    fplt.plot(
+        chunk,
+        # ax= dx,
+        axisoff=True,
+        figscale=0.2,
+        type='candle',
+        # style=s,
+        style='yahoo',
+        # volume=True,
+        savefig=dict(fname=output, dpi=64, pad_inches=0)
+    )
+
+
 def main():
     cnt = 0
     window = 14
+    offset = 2
     # table = pd.read_html('https://en.wikipedia.org/wiki/List_of_S%26P_500_companies')
     # df = table[0]
     # tickers = df['Symbol'].to_list()
@@ -54,10 +63,6 @@ def main():
         ticker_df.reset_index(inplace=True)  # Convert the Datetimeindex to 'Date' column
         ticker_df.index = pd.DatetimeIndex(ticker_df['Date'])
         ticker_volume = ticker_df["Volume"]
-        # print(ticker_df.info())
-        # print(ticker_df)
-        # print(ticker_volume)
-        # print(ticker_close)
 
         ticker_volume_sma = ta.wrapper.SMAIndicator(ticker_volume, window).sma_indicator()
 
@@ -70,45 +75,30 @@ def main():
         ticker_df = ticker_df[window:]
         ticker_volume_sma = ticker_volume_sma[window:]
 
-        # print(ticker_df.shape)
-        # print(ticker_volume_sma.shape)
+        print(ticker_df.info())
 
         for i, row in enumerate(ticker_df.iterrows()):
-            if i % window == 0:
-                # i_vol = float(row[1]['Volume'])
-                # i_vol_sma = float(ticker_volume_sma[i])
-                cnt = cnt + 1
-                # print(i_vol)
-                # print(type(i_vol_sma))
-                # print(i_vol_sma))
-                # if i_vol > i_vol_sma: #TODO volume sma requirement?
-                chunk = ticker_df[i:i + window]
+            if i % (window - offset) == 0:
+                chunk = ticker_df[i:i + window - offset]
+                vol_avg = float(chunk['Volume'].mean())
+                vol_sma = float(ticker_volume_sma[i])
+                if vol_avg > vol_sma:
+                    cnt = cnt + 1
+                    print('count: ' + str(cnt))
+                    last_list, trend = label_candle_data(chunk, last_list)
 
-                last_list, trend = label_candle_data(chunk, last_list)
+                    dates = pd.to_datetime(chunk['Date']).dt.date
+                    date_interval = str(dates[0]) + '_' + str(dates[-1])
+                    output_dir = output_path + '/' + trend
+                    os.makedirs(output_dir, exist_ok=True)
+                    output = output_dir + '/' + ticker + '_' + date_interval + '_' + trend + '.png'
+                    save_plot(chunk, output)
 
-                dates = pd.to_datetime(chunk['Date']).dt.date
-                date_interval = str(dates[0]) + '_' + str(dates[1])
-                output_dir = output_path + '/' + trend
-                os.makedirs(output_dir, exist_ok=True)
-                output = output_dir + '/' + ticker + '_' + date_interval + '_' + trend + '.png'
+                    offset = random.randint(2, 8)
 
-                fplt.plot(
-                    chunk,
-                    # ax= dx,
-                    axisoff=True,
-                    figscale=0.2,
-                    type='candle',
-                    # style=s,
-                    style='yahoo',
-                    # volume=True,
-                    savefig=dict(fname=output, dpi=64, pad_inches=0)
-                )
-
-                window = random.randint(6, 12)
-
-                # else:
-                #     print('skip...')
-    print(cnt)
+                else:
+                    print('skip...')
+    print('Total candle images labeled: ' + str(cnt))
 
 
 if '__main__':
