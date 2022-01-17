@@ -76,6 +76,7 @@ def main():
         ticker_volume_sma = ticker_volume_sma[window:]
 
         print(ticker_df.info())
+        cnt_up, cnt_down, cnt_side = 0, 0, 0
 
         for i, row in enumerate(ticker_df.iterrows()):
             if i % (window - offset) == 0:
@@ -86,6 +87,13 @@ def main():
                     cnt = cnt + 1
                     print('count: ' + str(cnt))
                     last_list, trend = label_candle_data(chunk, last_list)
+
+                    if trend == 'UP':
+                        cnt_up = cnt_up + 1
+                    elif trend == 'DOWN':
+                        cnt_down = cnt_down + 1
+                    elif trend == 'SIDE':
+                        cnt_side = cnt_side + 1
 
                     dates = pd.to_datetime(chunk['Date']).dt.date
                     date_interval = str(dates[0]) + '_' + str(dates[-1])
