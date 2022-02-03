@@ -31,16 +31,19 @@ def label_candle_data(data, last_list):
 
 
 def save_plot(chunk, output):
+    # https://github.com/matplotlib/mplfinance/blob/master/examples/styles.ipynb
+    mc = fplt.make_marketcolors(up='g', down='r', inherit=True)
+    s = fplt.make_mpf_style(base_mpf_style='nightclouds', marketcolors=mc)
     fplt.plot(
         chunk,
-        # ax= dx,
         axisoff=True,
         figscale=0.2,
+        figratio=(1.00, 1.00),
         type='candle',
-        # style=s,
-        style='yahoo',
+        # style='yahoo',
+        style=s,
         # volume=True,
-        savefig=dict(fname=output, dpi=64, pad_inches=0)
+        savefig=dict(fname=output, dpi=35)
     )
 
 
@@ -99,7 +102,7 @@ def main():
                     date_interval = str(dates[0]) + '_' + str(dates[-1])
                     output_dir = output_path + '/' + trend
                     os.makedirs(output_dir, exist_ok=True)
-                    output = output_dir + '/' + ticker + '_' + date_interval + '_' + trend + '.png'
+                    output = output_dir + '/' + ticker + '_' + date_interval + '_' + str(len(chunk)) + '_' + trend + '.png'
                     save_plot(chunk, output)
 
                     offset = random.randint(2, 8)
