@@ -2,21 +2,15 @@ import os
 import sys
 import torch
 import pandas as pd
-import matplotlib.pyplot as plt
+from PIL import Image
 import numpy as np
 import glob
 import time
 import pickle
-
-from PIL import Image
-
 import torchvision
 from torch.utils.data import Dataset, DataLoader, ConcatDataset, SubsetRandomSampler
-from torchvision.io import read_image, ImageReadMode
-from torchvision.utils import save_image
-
-from torchvision import transforms, utils, datasets
-from torchvision.transforms import ToTensor, Lambda
+from torchvision.io import read_image
+from torchvision import transforms
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
@@ -29,25 +23,32 @@ input_dir = str(sys.argv[1])  # input dir where candlestick images are stored
 # os.makedirs(output_dir, exist_ok=True)
 
 
-def get_labels(img_dir):
+def get_annotations(img_dir):
     data = []
+    size = 600  # uniformly distribute each class of dataset to size length
+    cntu, cntd, cnts = 0, 0, 0
     for f in glob.glob(os.path.join(img_dir, "**/*.png"), recursive=True):
         fsplit = f.rsplit("/")
         name = fsplit[-1].rsplit(".")[0]
         fsplit = name.rsplit("_")
         label = fsplit[-1]
 
-        if label == 'UP':
+        if label == 'UP' and cntu != size:
             data.append([f, 0])
-        elif label == 'DOWN':
+            cntu += 1
+        elif label == 'DOWN' and cntd != size:
             data.append([f, 1])
-        else:
+            cntd += 1
+        elif label == 'SIDE' and cnts != size:
             data.append([f, 2])
+            cnts += 1
 
-        # print(f)
+        if cntu == size and cntd == size and cnts == size:
+            break
 
-    # column_names = ["images", "trends"]
     df = pd.DataFrame(data)
+    df = df.sample(frac=1).reset_index(drop=True)   # shuffle df in-place and reset indices
+    # df.to_csv("./df.csv", header=False)
     return df
 
 
@@ -106,7 +107,7 @@ class Net(nn.Module):
 
 class CandleImageDataset(Dataset):
     def __init__(self, root, transform=None, target_transform=None):
-        self.img_labels = get_labels(root)
+        self.img_labels = get_annotations(root)
         self.img_dir = root
         self.transform = transform
         self.target_transform = target_transform
@@ -147,7 +148,9 @@ def main():
 
     dataset = CandleImageDataset(root=input_dir, transform=transform)
 
-    train_set, test_set = torch.utils.data.random_split(dataset, [1630, 698])
+    print('Dataset length: {}'.format(len(dataset)))
+
+    train_set, test_set = torch.utils.data.random_split(dataset, [1350, 450])  # split 75% train, 25% test
 
     # Display image and label.
     # train_features, train_labels = next(iter(trainloader))
@@ -224,9 +227,9 @@ def main():
         print("Fold {} done in {:.2f} minutes.".format(fold + 1, fold_mins))
 
         fold_performance['fold{}'.format(fold + 1)] = history
-    torch.save(model, 'medusa_CNN.pt')
-    a_file = open("medusa_history.pkl", "wb")
-    pickle.dump(history, a_file)
+    torch.save(model.s, 'medusa_CNN.pt')
+    a_file = open("medusa_performance.pkl", "wb")
+    pickle.dump(fold_performance, a_file)
     a_file.close()
 
     # a_file = open("data.pkl", "rb")
