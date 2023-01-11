@@ -15,6 +15,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 from sklearn.model_selection import KFold
+from medusa_covnet import CovNet
 
 input_dir = str(sys.argv[1])  # input dir where candlestick images are stored
 
@@ -80,30 +81,6 @@ def valid_epoch(model, device, dataloader, loss_fn):
         val_correct += (predictions == labels).sum().item()
 
     return valid_loss, val_correct
-
-
-class Net(nn.Module):
-    def __init__(self):
-        super().__init__()
-        self.conv1 = nn.Conv2d(3, 6, (2, 2))
-        self.pool1 = nn.MaxPool2d(2, 2)
-        self.conv2 = nn.Conv2d(6, 12, (2, 2))
-        self.pool2 = nn.MaxPool2d(1, 2)
-        self.conv3 = nn.Conv2d(12, 3, (1, 1))
-
-        self.fc1 = nn.Linear(243, 120)
-        self.fc2 = nn.Linear(120, 3)
-
-    def forward(self, x):
-        # save_image(x, 'first0.png')
-        x = self.pool1(F.relu(self.conv1(x)))
-        x = self.pool2(F.relu(self.conv2(x)))
-        x = F.relu(self.conv3(x))
-        x = torch.flatten(x, 1)  # flatten all dimensions except batch
-        x = self.fc1(x)
-        x = self.fc2(x)
-        return x
-
 
 class CandleImageDataset(Dataset):
     def __init__(self, root, transform=None, target_transform=None):
@@ -192,7 +169,7 @@ def main():
 
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-        model = Net()
+        model = CovNet()
         model.to(device)
         # optimizer = optim.SGD(model.parameters(), lr=0.01)
         optimizer = optim.Rprop(model.parameters(), lr=0.01)  # resilient backpropagation
@@ -227,7 +204,7 @@ def main():
         print("Fold {} done in {:.2f} minutes.".format(fold + 1, fold_mins))
 
         fold_performance['fold{}'.format(fold + 1)] = history
-    torch.save(model.s, 'medusa_CNN.pt')
+    torch.save(model, 'medusa_CNN.pt')
     a_file = open("medusa_performance.pkl", "wb")
     pickle.dump(fold_performance, a_file)
     a_file.close()

@@ -4,12 +4,11 @@ import pickle
 import numpy as np
 import matplotlib.pyplot as plt
 
-input_dict = str(sys.argv[1])  # input dir where candlestick images are stored
-
+model_file = str(sys.argv[1])  # input model pickle file
 
 def main():
-    num_epochs = 2000
-    a_file = open(input_dict, "rb")
+    num_epochs = 100
+    a_file = open(model_file, "rb")
     history = pickle.load(a_file)
 
     testl_f, tl_f, testa_f, ta_f = [], [], [], []
